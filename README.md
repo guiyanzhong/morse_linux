@@ -5,11 +5,10 @@ This is a command-line tool for playing with Morse Codes.
 ## Compile
 
 ```bash
-mkdir build
-cd build
-cmake ..
 make
 ```
+
+## Run
 
 ```bash
 # Generate Morse code for sample text "CQ CQ DE BH4FYQ K"
