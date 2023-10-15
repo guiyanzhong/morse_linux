@@ -6,7 +6,6 @@
 #include <alsa/asoundlib.h>
 
 #define AMPLITUDE 0.7
-#define FREQUENCY 440
 
 int err;
 snd_pcm_t *pcm_handle;
@@ -70,7 +69,7 @@ void beep(double duration)
     while (samples_played < total_samples) {
         short *ptr = (short *)buffer;
         for (int i = 0; i < period_size; i++) {
-            double value = AMPLITUDE * sin(2 * pi * FREQUENCY * (samples_played + i) / sample_rate);
+            double value = AMPLITUDE * sin(2 * pi * frequency * (samples_played + i) / sample_rate);
             for (int j = 0; j < channels; j++) {
                 *ptr++ = (short)(value * 32767);  // Convert sample value to 16-bit signed integer.
             }
@@ -103,7 +102,7 @@ int main(int argc, char* argv[]) {
             printf("Usage: %s -f 600 -t \"CQ CQ DE ...\"\n", argv[0]);
             return 0;
         case 'f':
-            strncpy(text, optarg, 256);
+            frequency = atoi(optarg);
             break;
         case 't':
             strncpy(text, optarg, 256);
