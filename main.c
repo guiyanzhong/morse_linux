@@ -1,5 +1,6 @@
 #include <getopt.h>
 #include <math.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -104,12 +105,12 @@ void beep(double duration)
 void manual_key()
 {
     printf("Manual key.\n");
-
 }
 
 void auto_key()
 {
     printf("Auto key.\n");
+
     int fd = open(device, O_RDWR | O_NOCTTY);  // Open the serial port
     if (fd == -1) {
         perror("Error opening the serial port");
@@ -193,18 +194,54 @@ void text_to_morse(char *text)
     printf("\n");
 }
 
+void print_help_and_exit(char *argv0)
+{
+    printf("This program works in one of the three mode: manual key, double paddle key, or send text directly.\n\n");
+    printf("Program options:\n\n");
+    printf("At lease, one of -t or -k is required.\n\n");
+    printf("    -t \"CQ CQ\"     :  text to send\n");
+    printf("    -k 2           :  Morse key, 1 for manual key, or 2 for double paddle key\n");
+    printf("    -d /dev/ttyS0  :  serial device connecting the Morse key, default to /dev/ttyUSB0\n");
+    printf("    -f 600         :  audio frequency, default to 440 Hz\n");
+    printf("    -h             :  print this help\n\n");
+
+    printf("Examples:\n\n");
+    printf("Send text          :  %s -t \"CQ CQ DE ...\"\n", argv0);
+    printf("Manual key         :  %s -k 1\n", argv0);
+    printf("Double paddle key  :  %s -k 2\n\n", argv0);
+
+
+    exit(EXIT_FAILURE);
+}
+
+void term(int signum)
+{
+   exit(EXIT_FAILURE);
+}
+
 int main(int argc, char* argv[]) {
+    printf("*** Morse Code Tool ***\n\n");
+
+    // Ctrl-C & kill signal handlers.
+    struct sigaction action = {0};
+    action.sa_handler = term;
+    sigaction(SIGINT, &action, NULL);
+    sigaction(SIGTERM, &action, NULL);
+
+    // Cleanup at exit.
+    atexit(cleanup);
+
+    // Init.
+    if ((err = init()))
+        return err;
+
     // Text to convert to Morse code.
-//    char text[256] = "CQ CQ DE BH4FYQ K";
-    char text[256] = "CQ 3535 CQ ";
+    char text[256] = "CQ CQ CQ";
 
     int c = 0, keys = 0;
-    while((c = getopt(argc, argv, "hf:d:k:t:")) != -1) {
+    bool send_text = false;
+    while((c = getopt(argc, argv, "f:d:k:t:h")) != -1) {
         switch(c) {
-        case 'h':
-            printf("Usage: %s -f 600 -t \"CQ CQ DE ...\"\n", argv[0]);
-            printf("Usage: %s -f 600 -d %s -k 2\n", argv[0], device);
-            return 0;
         case 'f':
             frequency = atoi(optarg);
             break;
@@ -215,33 +252,29 @@ int main(int argc, char* argv[]) {
             keys = atoi(optarg);
             break;
         case 't':
+            send_text = true;
             strncpy(text, optarg, 256);
             break;
+        case 'h':
         default:
-            return 0;
+            print_help_and_exit(argv[0]);
         }
     }
 
-    // Init.
-    if ((err = init()))
-        return err;
-
-    switch (keys) {
-    case 0:
+    if (send_text) {
         text_to_morse(text);
-        break;
-    case 1:
-        manual_key();
-        break;
-    case 2:
-        auto_key();
-        break;
-    default:
-        break;
+    } else {
+        switch (keys) {
+        case 1:
+            manual_key();
+            break;
+        case 2:
+            auto_key();
+            break;
+        default:
+            print_help_and_exit(argv[0]);
+        }
     }
-
-    // Clean up resources & close PCM device.
-    cleanup();
 
     return 0;
 }
